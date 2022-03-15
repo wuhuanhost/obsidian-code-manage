@@ -1,3 +1,7 @@
+/**
+ * 开发文档：https://marcus.se.net/obsidian-plugin-docs/guides/custom-views
+ */
+
 import {
 	App,
 	Editor,
@@ -7,10 +11,38 @@ import {
 	Plugin,
 	PluginSettingTab,
 	Setting,
+	ItemView,
+	WorkspaceLeaf,
 } from "obsidian";
 
-// Remember to rename these classes and interfaces!
+export const VIEW_TYPE_EXAMPLE = "example-view";
 
+//自定义视图
+export class ExampleView extends ItemView {
+	constructor(leaf: WorkspaceLeaf) {
+		super(leaf);
+	}
+
+	getViewType() {
+		return VIEW_TYPE_EXAMPLE;
+	}
+
+	getDisplayText() {
+		return "Example view";
+	}
+
+	async onOpen() {
+		const container = this.containerEl.children[1];
+		container.empty();
+		container.createEl("h4", { text: "Example view" });
+	}
+
+	async onClose() {
+		// Nothing to clean up.
+	}
+}
+
+// Remember to rename these classes and interfaces!
 interface MyPluginSettings {
 	mySetting: string;
 }
@@ -23,7 +55,21 @@ export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
 
 	async onload() {
+		//加载配置
 		await this.loadSettings();
+
+		//注册一个editor-menu
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				menu.addItem((item) => {
+					item.setTitle("Print file path 👈")
+						.setIcon("document")
+						.onClick(async () => {
+							new Notice(view.file.path);
+						});
+				});
+			})
+		);
 
 		// This creates an icon in the left ribbon.
 		// 在左侧功能区创建一个图标
