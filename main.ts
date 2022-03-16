@@ -11,36 +11,11 @@ import {
 	Plugin,
 	PluginSettingTab,
 	Setting,
-	ItemView,
+	ViewState,
 	WorkspaceLeaf,
 } from "obsidian";
 
-export const VIEW_TYPE_EXAMPLE = "example-view";
-
-//自定义视图
-export class ExampleView extends ItemView {
-	constructor(leaf: WorkspaceLeaf) {
-		super(leaf);
-	}
-
-	getViewType() {
-		return VIEW_TYPE_EXAMPLE;
-	}
-
-	getDisplayText() {
-		return "Example view";
-	}
-
-	async onOpen() {
-		const container = this.containerEl.children[1];
-		container.empty();
-		container.createEl("h4", { text: "Example view" });
-	}
-
-	async onClose() {
-		// Nothing to clean up.
-	}
-}
+import { ExampleView, VIEW_TYPE_EXAMPLE } from "./src/view";
 
 // Remember to rename these classes and interfaces!
 interface MyPluginSettings {
@@ -54,18 +29,64 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
 
+
+
+	async setMarkdownView(leaf: WorkspaceLeaf, focus = true) {
+		await leaf.setViewState(
+			{
+				type: "markdown",
+				state: leaf.view.getState(),
+				popstate: true,
+			} as ViewState,
+			{ focus }
+		);
+	}
+
+	async activateView() {
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_EXAMPLE);
+
+		await this.app.workspace.getLeaf().setViewState({
+			type: VIEW_TYPE_EXAMPLE,
+			active: true,
+		});
+
+		this.app.workspace.revealLeaf(
+			this.app.workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0]
+		);
+	}
+
 	async onload() {
 		//加载配置
 		await this.loadSettings();
+
+		//注册自定义视图
+		this.registerView(
+			VIEW_TYPE_EXAMPLE,
+			(leaf) => new ExampleView(leaf, this)
+		);
 
 		//注册一个editor-menu
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
 				menu.addItem((item) => {
-					item.setTitle("Print file path 👈")
+					item.setTitle("Custom View 👈")
 						.setIcon("document")
 						.onClick(async () => {
-							new Notice(view.file.path);
+							console.log("点击了Custom View按钮");
+							this.activateView();
+						});
+				});
+			})
+		);
+
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				menu.addItem((item) => {
+					item.setTitle("Custom View 👈")
+						.setIcon("document")
+						.onClick(async () => {
+							new Notice(file.path);
+							this.activateView();
 						});
 				});
 			})
@@ -151,7 +172,9 @@ export default class MyPlugin extends Plugin {
 		);
 	}
 
-	onunload() {}
+	onunload() {
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_EXAMPLE);
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
